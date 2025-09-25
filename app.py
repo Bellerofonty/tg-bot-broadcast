@@ -13,10 +13,12 @@ def send():
     bot_token = request.form["bot_token"].strip()
     message = request.form["message"].strip()
     user_ids_raw = request.form["user_ids"].strip()
+    button_text = request.form.get("button_text", "").strip()
+    button_url = request.form.get("button_url", "").strip()
 
     user_ids = [uid.strip() for uid in user_ids_raw.split("\n") if uid.strip().isdigit()]
 
-    summary, csv_data = send_messages(bot_token, user_ids, message)
+    summary, csv_data = send_messages(bot_token, user_ids, message, button_text or None, button_url or None)
 
     if csv_data:
         return Response(

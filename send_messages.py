@@ -1,7 +1,7 @@
 import asyncio
 import csv
 from io import StringIO
-from telegram import Bot
+from telegram import Bot, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.error import TelegramError
 from aiohttp import ClientError
 from socket import timeout
@@ -11,18 +11,27 @@ BATCH_SIZE = 20
 DELAY_BETWEEN_MESSAGES = 1
 DELAY_BETWEEN_BATCHES = 10
 
-async def _send_messages(bot_token, user_ids, message):
+async def _send_messages(bot_token, user_ids, message, button_text=None, button_url=None):
     request = HTTPXRequest(connect_timeout=30.0, read_timeout=30.0)
     bot = Bot(token=bot_token, request=request)
 
     failed_to_send = {}
+
+    reply_markup = None
+    if button_text and button_url:
+        reply_markup = InlineKeyboardMarkup([[InlineKeyboardButton(button_text, url=button_url)]])
 
     for i in range(0, len(user_ids), BATCH_SIZE):
         batch = user_ids[i:i + BATCH_SIZE]
 
         for user_id in batch:
             try:
-                await bot.send_message(chat_id=user_id, text=message)
+                await bot.send_message(
+                    chat_id=user_id,
+                    text=message,
+                    parse_mode="HTML",
+                    reply_markup=reply_markup
+                )
             except (TelegramError, ClientError, timeout, asyncio.TimeoutError) as e:
                 failed_to_send[user_id] = str(e)
             await asyncio.sleep(DELAY_BETWEEN_MESSAGES)
@@ -31,8 +40,12 @@ async def _send_messages(bot_token, user_ids, message):
 
     return failed_to_send
 
-def send_messages(bot_token: str, user_ids: list[str], message: str):
-    failed = asyncio.run(_send_messages(bot_token, user_ids, message))
+def send_messages(bot_token: str,
+                  user_ids: list[str],
+                  message: str,
+                  button_text: str = None,
+                  button_url: str = None):
+    failed = asyncio.run(_send_messages(bot_token, user_ids, message, button_text, button_url))
 
     success_count = len(user_ids) - len(failed)
     total_count = len(user_ids)
